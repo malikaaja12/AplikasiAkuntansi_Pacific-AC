@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!-- Chosen Palette: Cool Gray -->
+<!-- 
+Application Structure Plan: 
+Aplikasi ini dirancang sebagai SPA (Single Page Application) dengan sistem tab untuk memisahkan fungsi-fungsi utama, meniru alur kerja akuntansi yang logis.
+1.  **Tab Jurnal Umum:** Halaman utama untuk input data. Format input diubah menjadi satu baris per transaksi sederhana, dengan kolom terpisah untuk "Akun Debit" dan "Akun Kredit" serta satu kolom "Jumlah". Logika penyimpanan diperbarui: saat tombol "Simpan" diklik, semua baris yang diinput akan diberi 'No. Bukti' yang sama, sehingga digabungkan menjadi satu grup transaksi.
+2.  **Tab Buku Besar:** Tidak ada perubahan pada logika tab ini. Karena data tetap disimpan sebagai jurnal umum standar, Buku Besar akan berfungsi seperti sebelumnya, menampilkan riwayat transaksi per akun.
+3.  **NEW - Tab Neraca:** Menampilkan laporan posisi keuangan dengan Aktiva di satu sisi dan Pasiva (Liabilitas + Ekuitas) di sisi lain, memastikan keseimbangan.
+4.  **Tab Laporan Laba Rugi:** Tidak ada perubahan pada logika tab ini. Laporan akan tetap akurat karena dihitung dari data jurnal umum standar yang telah diolah dari input pengguna.
+5.  **NEW - Tab Arus Kas:** Memberikan laporan arus kas yang disederhanakan, dikategorikan ke dalam aktivitas Operasi, Investasi, dan Pendanaan.
+6.  **UPDATED - Tab Data Piutang:** Diubah menjadi modul manajemen piutang interaktif. Pengguna bisa menambah piutang baru (nama pelanggan, jumlah, tanggal, dll.). Setiap penambahan akan otomatis membuat jurnal (Debit Piutang Usaha, Kredit Pendapatan), mengintegrasikan data ke seluruh laporan keuangan. **NEW: Menambahkan fitur pembayaran piutang (lunas/sebagian) yang juga terintegrasi dengan penjurnalan otomatis.**
+7.  **NEW - Tab Stok Barang:** Fitur mandiri untuk manajemen inventaris sederhana, memungkinkan pengguna menambah, mengubah, dan menghapus item stok. Data stok disimpan terpisah.
+8.  **Tab Pengaturan:** Tetap berfungsi untuk mengelola daftar akun dan kelompok. Fungsi manajemen data (impor/ekspor/laporan PDF) tetap ada.
+Struktur ini memberikan kemudahan di bagian depan (input sederhana) sambil mempertahankan kekuatan dan kebenaran akuntansi di bagian belakang, dan kini dilengkapi kemampuan ekspor data yang superior serta manajemen data per periode.
+-->
+<!-- 
+Visualization & Content Choices: 
+-   **Entri Transaksi (Input Data):** Goal: Memasukkan data transaksi secara cepat dan intuitif. Method: Tabel HTML interaktif dengan kolom "Akun Debit", "Akun Kredit", dan "Jumlah". Interaction: Menambah baris dinamis, dropdown untuk pemilihan akun. Justification: Format ini lebih cepat untuk transaksi sederhana dan mengurangi kemungkinan kesalahan ketidakseimbangan. Library: Vanilla JS.
+-   **Laporan & Analisis (Tampilan Data):** Goal: Menyajikan data keuangan yang akurat. Method: Semua laporan (Jurnal, Buku Besar, Laba Rugi, Analisis AI, Neraca) dihitung dari sumber data `state.jurnals` yang konsisten. Justification: Memisahkan logika input dari logika pelaporan membuat sistem lebih kuat dan mudah dikelola.
+-   **UPDATED - Manajemen Piutang (Integrasi Penuh):** Goal: Menyederhanakan pencatatan dan pelunasan piutang. Method: Form input piutang akan membuat jurnal penjualan kredit. **NEW:** Tombol "Bayar" pada setiap kartu piutang akan membuka modal untuk mencatat pembayaran. Fungsi `addPayment` akan (1) mengurangi sisa piutang pada `state.piutangs`, dan (2) membuat jurnal pelunasan (Debit Kas, Kredit Piutang Usaha) di `state.jurnals`. Interaction: Kartu piutang lunas akan otomatis hilang dari daftar aktif. Justification: Otomatisasi jurnal ganda (saat piutang dibuat & saat dibayar) adalah inti dari sistem akuntansi yang baik, menghilangkan entri manual dan menjaga integritas data di semua laporan.
+-   **NEW - Stok Barang (Fitur Mandiri):** Goal: Menyediakan manajemen inventaris dasar. Method: Menggunakan state terpisah (`state.stock`) yang disimpan dalam localStorage. Interaksi CRUD penuh di dalam tabnya. Justification: Memisahkannya dari data jurnal menyederhanakan implementasi.
+-   **Download PDF (Enhanced):** Goal: Memberikan laporan PDF yang komprehensif. Method: Fungsi `generatePDF` membuat diagram dan tabel menggunakan Chart.js dan jspdf-autotable pada canvas tersembunyi. Justification: Menambahkan visualisasi data meningkatkan nilai dan profesionalisme laporan.
+-   **CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.**
+-->
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jurnal Umum Akuntansi</title>
+    <link rel="icon" href="img/logo.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <header class="mb-8 text-center">
+        <h1 class="text-3xl font-bold text-gray-900">
+          Jurnal Umum Akuntansi Interaktif
+        </h1>
+        <p class="text-gray-600 mt-2">
+          Diperkuat dengan ✨ Analisis AI dari Gemini untuk wawasan keuangan
+          yang lebih baik.
+        </p>
+      </header>
+
+      <div class="mb-6 border-b border-gray-200">
+        <nav class="flex flex-wrap -mb-px" aria-label="Tabs">
+          <button
+            onclick="app.changeTab('jurnal')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="jurnal"
+          >
+            <i class="fas fa-book mr-2"></i>Input Transaksi
+          </button>
+          <button
+            onclick="app.changeTab('bukuBesar')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="bukuBesar"
+          >
+            <i class="fas fa-archive mr-2"></i>Buku Besar
+          </button>
+          <button
+            onclick="app.changeTab('neraca')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="neraca"
+          >
+            <i class="fas fa-balance-scale mr-2"></i>Neraca
+          </button>
+          <button
+            onclick="app.changeTab('labaRugi')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="labaRugi"
+          >
+            <i class="fas fa-chart-pie mr-2"></i>Laba Rugi
+          </button>
+          <button
+            onclick="app.changeTab('arusKas')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="arusKas"
+          >
+            <i class="fas fa-water mr-2"></i>Arus Kas
+          </button>
+          <button
+            onclick="app.changeTab('dataPiutang')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="dataPiutang"
+          >
+            <i class="fas fa-file-invoice-dollar mr-2"></i>Data Piutang
+          </button>
+          <button
+            onclick="app.changeTab('stockBarang')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="stockBarang"
+          >
+            <i class="fas fa-boxes mr-2"></i>Stock Barang
+          </button>
+          <button
+            onclick="app.changeTab('pengaturan')"
+            class="tab-button flex-grow sm:flex-grow-0 text-center border-b-2 font-medium text-sm px-4 py-3 text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap"
+            data-tab="pengaturan"
+          >
+            <i class="fas fa-cog mr-2"></i>Pengaturan
+          </button>
+        </nav>
+      </div>
+
+      <main id="main-content">
+        <!-- Konten Tab akan dirender di sini oleh JavaScript -->
+        <div id="jurnal-tab" class="tab-content">...</div>
+        <div id="bukuBesar-tab" class="tab-content hidden">...</div>
+        <div id="neraca-tab" class="tab-content hidden">...</div>
+        <div id="labaRugi-tab" class="tab-content hidden">...</div>
+        <div id="arusKas-tab" class="tab-content hidden">...</div>
+        <div id="dataPiutang-tab" class="tab-content hidden">...</div>
+        <div id="stockBarang-tab" class="tab-content hidden">...</div>
+        <div id="pengaturan-tab" class="tab-content hidden">...</div>
+      </main>
+    </div>
+
+    <div id="modal" class="modal-backdrop hidden">
+      <div class="modal-content">
+        <h3 id="modal-title" class="text-lg font-semibold mb-4"></h3>
+        <div id="modal-body"></div>
+        <div id="modal-actions" class="mt-6 text-right space-x-2"></div>
+      </div>
+    </div>
+
+    <!-- Canvas tersembunyi untuk generate chart PDF -->
+    <canvas
+      id="pdf-chart"
+      width="800"
+      height="400"
+      style="display: none"
+    ></canvas>
+    <canvas id="pdf-pie-chart" width="400" height="400" style="display: none">
+    </canvas>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>
