@@ -6,6 +6,7 @@ const app = {
     settings: { akuns: [], kelompoks: [] }, // Hapus 'brands'
     stock: { items: [], transactions: [] }, // Struktur stok baru
     piutangs: [], // NEW: for receivables management
+    apiKey: localStorage.getItem('gemini_api_key') || '',
   },
   chartInstance: null,
 
@@ -1002,7 +1003,27 @@ const app = {
     container.innerHTML = `
                 <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <h3 class="text-lg font-semibold mb-2">Manajemen Kategori</h3>
+                        <h3 class="text-lg font-semibold mb-4">Konfigurasi Sistem</h3>
+                
+                        <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                            <h4 class="font-medium text-blue-900 mb-2"><i class="fas fa-key mr-2"></i>Google Gemini API Key</h4>
+                            <p class="text-xs text-blue-700 mb-3">
+                                Kunci API diperlukan untuk fitur Analisis AI. Kunci akan disimpan aman di browser Anda (Local Storage) dan tidak akan disebarkan.
+                            </p>
+                            <div class="flex gap-2">
+                                <input type="password" id="settings-api-key" 
+                                    class="flex-grow block w-full rounded-md border-gray-300 shadow-sm text-sm" 
+                                    placeholder="Tempel API Key di sini (AIza...)"
+                                    value="${this.state.apiKey}">
+                                <button onclick="app.saveApiKey()" 
+                                    class="py-2 px-3 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                    Simpan
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Belum punya kunci? <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Dapatkan di sini</a>.
+                            </p>
+                        </div>
                         <div class="space-y-6">
                             <div>
                                 <h4 class="font-medium mb-2">Daftar Akun</h4>
@@ -1084,6 +1105,21 @@ const app = {
       brandList.closest("div").remove(); // Hapus seluruh div parent
     }
   },
+   // FUNGSI BARU: MENYIMPAN API KEY
+        saveApiKey() {
+            const input = document.getElementById('settings-api-key');
+            const key = input.value.trim();
+            
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                this.state.apiKey = key;
+                this.showModal("Sukses", "API Key berhasil disimpan di browser ini.");
+            } else {
+                localStorage.removeItem('gemini_api_key');
+                this.state.apiKey = '';
+                this.showModal("Info", "API Key dihapus dari penyimpanan browser.");
+            }
+        },
   // NEW TABS START HERE
   calculateFinancials(jurnals = this.state.jurnals) {
     const pendapatanAkuns = this.state.settings.akuns.filter(
@@ -2398,6 +2434,17 @@ const app = {
     input.click();
   },
   async callGeminiAPI(prompt, buttonElement) {
+     // CEK APAKAH API KEY SUDAH ADA
+          if (!this.state.apiKey) {
+              this.showModal(
+                  "API Key Diperlukan",
+                  `<p class="mb-4">Fitur analisis cerdas ini membutuhkan Google Gemini API Key.</p>
+                   <p class="mb-4 text-sm text-gray-600">Silakan buka tab <b>Pengaturan</b> dan masukkan API Key Anda di kolom yang tersedia.</p>
+                   <button onclick="app.changeTab('pengaturan'); app.closeModal();" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">Ke Pengaturan</button>`
+              );
+              return;
+          }
+
     if (buttonElement) buttonElement.classList.add("loading");
     this.showModal(
       "✨ Analisis AI",
@@ -2406,8 +2453,9 @@ const app = {
     const payload = {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     };
-    const apiKey = "AIzaSyDtZ8dH-zRdBNKrs0tf9QXXSnbnmr2SyQk"; // API key akan disediakan saat runtime
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    // GUNAKAN API KEY DARI STATE (YANG DIAMBIL DARI LOCAL STORAGE)
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${this.state.apiKey}`;
+          
     try {
       const response = await fetch(apiUrl, {
         method: "POST",
