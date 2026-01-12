@@ -48,6 +48,14 @@ export function renderJurnalTab() {
                         ${getKelompokOptions(true, "Pilih Kelompok")}
                     </select>
                 </div>
+                <div>
+                    <label for="batch-category" class="block text-sm font-medium text-gray-700">Kategori</label>
+                    <select id="batch-category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Pilih Kategori --</option>
+                        <option value="Residential">🏠 Residential</option>
+                        <option value="Project">🏗️ Project</option>
+                    </select>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table id="jurnal-input-table" class="min-w-full">
@@ -69,7 +77,16 @@ export function renderJurnalTab() {
             </div>
         </section>
         <section class="bg-white p-6 rounded-lg shadow-sm">
-            <h2 class="text-xl font-semibold mb-4">Daftar Jurnal (Riwayat Transaksi)</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Daftar Jurnal (Riwayat Transaksi)</h2>
+                <div class="flex gap-2">
+                    <select id="filter-category" class="rounded-md border-gray-300 shadow-sm text-sm">
+                        <option value="">Semua Kategori</option>
+                        <option value="Residential">🏠 Residential</option>
+                        <option value="Project">🏗️ Project</option>
+                    </select>
+                </div>
+            </div>
             <div id="jurnal-list-container" class="space-y-4"></div>
         </section>`;
 
@@ -78,6 +95,7 @@ export function renderJurnalTab() {
 
     document.getElementById("add-row-btn").addEventListener("click", () => addInputRow());
     document.getElementById("save-jurnals-btn").addEventListener("click", () => saveJurnals());
+    document.getElementById("filter-category").addEventListener("change", () => renderJurnalTable());
     document.getElementById("jurnal-input-body").addEventListener("click", (e) => {
         if (e.target.closest(".delete-row-btn")) e.target.closest("tr").remove();
     });
@@ -111,17 +129,20 @@ export function addInputRow() {
 export function saveJurnals() {
     const batchTanggal = document.getElementById("batch-tanggal").value;
     const batchKelompok = document.getElementById("batch-kelompok").value;
+    const batchCategory = document.getElementById("batch-category").value;
     let hasError = false;
     let wrongMonthError = false;
 
-    if (!batchTanggal || !batchKelompok) {
-        utils.showModal("Peringatan", "Tanggal dan Kelompok transaksi harus diisi terlebih dahulu.");
+    if (!batchTanggal || !batchKelompok || !batchCategory) {
+        utils.showModal("Peringatan", "Tanggal, Kelompok, dan Kategori transaksi harus diisi terlebih dahulu.");
         document.getElementById("batch-tanggal").classList.toggle("input-error", !batchTanggal);
         document.getElementById("batch-kelompok").classList.toggle("input-error", !batchKelompok);
+        document.getElementById("batch-category").classList.toggle("input-error", !batchCategory);
         return;
     } else {
         document.getElementById("batch-tanggal").classList.remove("input-error");
         document.getElementById("batch-kelompok").classList.remove("input-error");
+        document.getElementById("batch-category").classList.remove("input-error");
     }
 
     if (batchTanggal.slice(0, 7) !== state.currentMonth) {
@@ -179,6 +200,7 @@ export function saveJurnals() {
             noBukti: batchNoBukti,
             keterangan: keterangan,
             kelompok: batchKelompok,
+            category: batchCategory,
         };
         newJurnals.push({
             ...baseEntry,
@@ -210,8 +232,16 @@ export function saveJurnals() {
 export function renderJurnalTable() {
     const container = document.getElementById("jurnal-list-container");
     if (!container) return;
+
+    const filterCategory = document.getElementById("filter-category")?.value || "";
     container.innerHTML = "";
-    const groupedJurnals = state.jurnals.reduce((acc, j) => {
+
+    // Filter journals by category
+    const filteredJurnals = filterCategory
+        ? state.jurnals.filter(j => j.category === filterCategory)
+        : state.jurnals;
+
+    const groupedJurnals = filteredJurnals.reduce((acc, j) => {
         (acc[j.noBukti] = acc[j.noBukti] || []).push(j);
         return acc;
     }, {});
@@ -223,7 +253,10 @@ export function renderJurnalTable() {
     });
 
     if (sortedNoBukti.length === 0) {
-        container.innerHTML = `<div class="text-center py-8 text-gray-500">Belum ada jurnal yang tersimpan untuk periode ${utils.formatMonth(state.currentMonth)}.</div>`;
+        const message = filterCategory
+            ? `Tidak ada jurnal ${filterCategory} untuk periode ${utils.formatMonth(state.currentMonth)}.`
+            : `Belum ada jurnal yang tersimpan untuk periode ${utils.formatMonth(state.currentMonth)}.`;
+        container.innerHTML = `<div class="text-center py-8 text-gray-500">${message}</div>`;
         return;
     }
 
@@ -263,7 +296,10 @@ export function renderJurnalTable() {
                 <div class="bg-gray-50 p-3 flex justify-between items-center flex-wrap gap-2">
                     <div>
                         <p class="font-semibold text-gray-800">${firstEntry.noBukti}</p>
-                        <p class="text-sm text-gray-500">${firstEntry.tanggal} | Kelompok: ${firstEntry.kelompok || "Lainnya"}</p>
+                        <p class="text-sm text-gray-500">
+                            ${firstEntry.tanggal} | Kelompok: ${firstEntry.kelompok || "Lainnya"}
+                            ${firstEntry.category ? `| <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${firstEntry.category === 'Residential' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">${firstEntry.category === 'Residential' ? '🏠' : '🏗️'} ${firstEntry.category}</span>` : ''}
+                        </p>
                     </div>
                      <div class="flex items-center gap-2">
                         <button data-action="analyze" data-nobukti="${noBukti}" class="gemini-button inline-flex items-center text-xs py-1 px-3 border border-transparent shadow-sm font-medium rounded-md text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700">

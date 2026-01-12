@@ -43,6 +43,14 @@ export function renderLabaRugiTab() {
                 <div> <label for="lr-end-date" class="block text-sm font-medium text-gray-700">Sampai Tanggal</label> <input type="date" id="lr-end-date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"> </div>
                 <button id="btn-render-laba-rugi" class="py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Tampilkan</button>
             </div>
+             <div>
+             <label for="filter-category" class="block text-sm font-medium text-gray-700">Kategori</label>
+                    <select id="filter-category" class="mb-6 mt-1 block w-40 rounded-md border-gray-300 shadow-sm">
+                        <option value="">-- Pilih Kategori --</option>
+                        <option value="Residential">🏠 Residential</option>
+                        <option value="Project">🏗️ Project</option>
+                        </select>
+             </div>
             <div id="labaRugi-container">
                 <button id="analyze-lr-btn" class="gemini-button mb-4 w-full sm:w-auto inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700">
                     <i class="fas fa-magic mr-2"></i> <span class="btn-text">✨ Buat Analisis Laporan</span> <i class="fas fa-spinner fa-spin"></i>
@@ -60,14 +68,21 @@ export function renderLabaRugiTab() {
     document.getElementById("lr-kelompok-filter").innerHTML = getKelompokOptions(true, "Semua Kelompok");
 
     renderLabaRugi();
-
+    document.getElementById("filter-category").addEventListener("change", () => renderLabaRugi());
     document.getElementById("btn-render-laba-rugi").addEventListener("click", () => renderLabaRugi());
     document.getElementById("analyze-lr-btn").addEventListener("click", (e) => analyzeLabaRugi(e));
 }
 
 export function renderLabaRugi() {
     const container = document.getElementById("labaRugi-content");
-    const { pendapatanDetails, bebanDetails, totalPendapatan, totalBeban, labaBersih } = calculateFinancials();
+    const filterCategory = document.getElementById("filter-category")?.value || "";
+
+    // Filter jurnals by category if selected
+    const filteredJurnals = filterCategory
+        ? state.jurnals.filter(j => j.category === filterCategory)
+        : state.jurnals;
+
+    const { pendapatanDetails, bebanDetails, totalPendapatan, totalBeban, labaBersih } = calculateFinancials(filteredJurnals);
 
     let html = `<div class="space-y-6">`;
     const createSection = (title, details, total) => {

@@ -1,16 +1,22 @@
 -- Database: accounting_app
-
+-- DROP DATABASE IF EXISTS pacific_ac;
+-- CREATE DATABASE pacific_ac CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE pacific_ac;
+--Tabel For ACOOUNT--
 CREATE TABLE IF NOT EXISTS accounts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     type ENUM('Aset', 'Liabilitas', 'Ekuitas', 'Pendapatan', 'Beban') NOT NULL
-);
 
+) ENGINE=InnoDB;
+
+-- Tabel For TRANSACTION GROUPS--
 CREATE TABLE IF NOT EXISTS transaction_groups (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE
-);
+)ENGINE-InnoDB;
 
+-- Tabel For TRANSACTIONS--
 CREATE TABLE IF NOT EXISTS transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     proof_no VARCHAR(100) NOT NULL,
@@ -21,8 +27,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     debit DECIMAL(15, 2) DEFAULT 0,
     credit DECIMAL(15, 2) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+)ENGINE-InnoDB;
 
+-- Tabel For RECEIVABLES--
 CREATE TABLE IF NOT EXISTS receivables (
     id INT AUTO_INCREMENT PRIMARY KEY,
     proof_no_journal VARCHAR(100),
@@ -33,8 +40,9 @@ CREATE TABLE IF NOT EXISTS receivables (
     due_date DATE NOT NULL,
     status ENUM('active', 'paid') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+)ENGINE-InnoDB;
 
+-- Tabel For RECEIVABLE PAYMENTS--
 CREATE TABLE IF NOT EXISTS receivable_payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     receivable_id INT,
@@ -44,16 +52,17 @@ CREATE TABLE IF NOT EXISTS receivable_payments (
     proof_no_journal VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (receivable_id) REFERENCES receivables(id) ON DELETE CASCADE
-);
-
+)ENGINE-InnoDB;
+-- Tabel For STOCK ITEMS--
 CREATE TABLE IF NOT EXISTS stock_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     initial_stock INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+)ENGINE-InnoDB;
 
+-- Tabel For STOCK TRANSACTIONS--
 CREATE TABLE IF NOT EXISTS stock_transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     item_code VARCHAR(50),
@@ -63,19 +72,21 @@ CREATE TABLE IF NOT EXISTS stock_transactions (
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (item_code) REFERENCES stock_items(code) ON DELETE CASCADE
-);
+)ENGINE-InnoDB;
 
 -- Default Accounts
 INSERT IGNORE INTO accounts (name, type) VALUES
-('Kas', 'Aset'),
+('Kas Proyek', 'Aset'),
+('Kas Uatama','Aset'),
 ('Bank', 'Aset'),
 ('Kas Kecil', 'Aset'),
-('Piutang Karyawan', 'Aset'),
+('Kas Besar','Aset'),
 ('Piutang Lainnya', 'Aset'),
 ('Piutang Usaha', 'Aset'),
 ('Persediaan Sparepart', 'Aset'),
 ('Perlengkapan Kantor', 'Aset'),
 ('Peralatan Usaha', 'Aset'),
+('Piutang Karyawan', 'Liabilitas'),
 ('Utang Usaha', 'Liabilitas'),
 ('Utang Bank', 'Liabilitas'),
 ('Modal', 'Ekuitas'),
@@ -88,13 +99,16 @@ INSERT IGNORE INTO accounts (name, type) VALUES
 
 -- Default Groups
 INSERT IGNORE INTO transaction_groups (name) VALUES
+('Tim Rizal')
 ('Tim Yudi'),
 ('Tim Aziz'),
 ('Tim Sukma'),
-('Tim Rfaid'),
+('Tim Rafid'),
 ('Tim Arya'),
 ('Tim Dafa'),
 ('Tim Farel'),
 ('Tim P.Deni'),
 ('Proyek A'),
+('Proyek B'),
 ('Operasional Kantor');
+
